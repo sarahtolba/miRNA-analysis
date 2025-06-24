@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# ------------------------------------------------------------------
-# miRNA-seq Analysis Pipeline (Arabidopsis thaliana)
-# Author: [Your Name]
-# Description: Full pipeline from quality control to read collapsing
-# ------------------------------------------------------------------
-
 # 1. Quality Control with FastQC
 # This step assesses the quality of raw sequencing reads.
 mkdir -p fastqc1
