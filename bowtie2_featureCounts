@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# 0. Create output directories
+mkdir -p fastqc1 fastqc2 trimmed alignment counts
+
+# 1. Initial QC with FastQC
+echo "Step 1: Raw reads QC with FastQC..."
+fastqc rawreads/*.fastq -o fastqc1/
+
+# 2. MultiQC on raw FastQC
+echo "Step 2: MultiQC summary of raw reads..."
+multiqc fastqc1/ -o fastqc1/
+
+# 3. Trimming adapters with fastp
+echo "Step 3: Trimming with fastp..."
+for file in rawreads/*.fastq; do
+    base=$(basename "$file" .fastq)
+    fastp -i "$file" -o trimmed/"${base}_trimmed.fastq" \
+          -h trimmed/"${base}.html" -j trimmed/"${base}.json"
+done
+
+# 4. QC on trimmed reads
+echo "Step 4: QC on trimmed reads..."
+fastqc trimmed/*_trimmed.fastq -o fastqc2/
+
+# 5. Build Bowtie index if not already built
+# echo "Step 5: Building Bowtie index..."
+# bowtie-build references/miRBase.fa references/mirna_index
+
+# 6. Align trimmed reads to miRNA reference (e.g., miRBase) using Bowtie
+echo "Step 6: Aligning trimmed reads to miRNA reference..."
+REF="references/mirna_index"
+for file in trimmed/*_trimmed.fastq; do
+    base=$(basename "$file" _trimmed.fastq)
+    bowtie -v 1 -p 4 -a --best --strata \
+        -x "$REF" \
+        -q "$file" > alignment/"${base}.sam"
+done
+
+# 7. Convert SAM to sorted and indexed BAM, then flagstat
+echo "Step 7: Processing SAM files..."
+for sam in alignment/*.sam; do
+    base=$(basename "$sam" .sam)
+    samtools view -bS "$sam" > alignment/"${base}.bam"
+    samtools sort alignment/"${base}.bam" -o alignment/"${base}.sorted.bam"
+    samtools index alignment/"${base}.sorted.bam"
+    samtools flagstat alignment/"${base}.sorted.bam" > alignment/"${base}.flagstat.txt"
+done
+
+# 8. Feature counting using featureCounts with miRNA-specific GTF/GFF (adjusted for short RNAs)
+echo "Step 8: Counting miRNA reads with featureCounts..."
+featureCounts -T 4 -s 0 \
+  -a references/miRNA.gtf \  # Replace with miRBase GTF/GFF or custom collapsed annotation
+  -o counts/miRNA_counts.txt \
+  alignment/*.sorted.bam
+
+echo "Pipeline completed successfully!"
