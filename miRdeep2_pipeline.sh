@@ -17,12 +17,6 @@ for file in fastq/*.fastq; do
     cutadapt -a AGATCGGAAGAGC -o trimmed/${base}_trimmed.fastq "$file"
 done
 
-# 4. Download and Extract Arabidopsis-specific miRNA references
-# Filters hairpin and mature miRNA sequences to only keep those for A. thaliana (ath).
-# -A1 means: print the line after a matching line (used to get FASTA sequence + header)
-grep -A1 "ath" hairpin.fa > references/hairpin_ath.fa
-grep -A1 "ath" mature.fa > references/mature_ath.fa
-
 # 5. Build Bowtie Index from Arabidopsis Genome
 # Required for mapping short reads in miRDeep2.
 bowtie-build references/fna/GCF_000001735.4_TAIR10.1_genomic.fna references/fna/fna.index
